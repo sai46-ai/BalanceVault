@@ -1,0 +1,26 @@
+# Build artifacts
+target/
+dist/
+client/dist/
+
+# Dependency directories
+node_modules/
+client/node_modules/
+
+# Logs
+*.log
+logs/
+
+# IDE and OS files
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+.DS_Store
+Thumbs.db
+
+# Sensitive local overrides
+.env.local
+.env.*.local
