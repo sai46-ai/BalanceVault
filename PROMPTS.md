@@ -38,7 +38,7 @@ This log documents the iterative collaboration with AI, recording initial assump
 
 ## 3. Commit Architecture & Progression
 
-Rather than a single monolithic dump, the repository was committed incrementally in 10 logical stages:
+Rather than a single monolithic dump, the repository was committed incrementally in logical, reviewable stages:
 1. `build: initialize project configuration, Docker environment, and gitignore`
 2. `feat(db): add double-entry ledger schema, immutable triggers, and migrations`
 3. `fix(config): configure application properties for environment and datasource binding`
@@ -49,6 +49,11 @@ Rather than a single monolithic dump, the repository was committed incrementally
 8. `feat(client): implement role-based banking views and dashboard`
 9. `docs: add operational RUNBOOK.md and lock reproducible client dependencies`
 10. `docs: create PROMPTS.md tracking AI collaboration and verification`
+11. `docs: add comprehensive project README with architecture, security model, and quickstart`
+12. `test: add input validation rules and cryptographic security test suites`
+13. `ci: add GitHub Actions workflow for automated test and build verification`
+14. `build: optimize Dockerfile client stage with npm ci and package-lock`
+15. `docs: update PROMPTS.md with test expansion, CI automation, and Docker caching`
 
 ---
 
