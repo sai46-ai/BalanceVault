@@ -1,8 +1,8 @@
 # 1) Build the React client.
 FROM node:24-alpine3.24 AS client
 WORKDIR /client
-COPY client/package.json ./
-RUN npm install --no-audit --no-fund
+COPY client/package.json client/package-lock.json ./
+RUN npm ci --no-audit --no-fund
 COPY client/index.html client/vite.config.js ./
 COPY client/src ./src
 RUN npm run build && test -f dist/index.html
