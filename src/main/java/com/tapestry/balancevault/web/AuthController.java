@@ -16,9 +16,12 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -40,11 +43,13 @@ import com.tapestry.balancevault.support.Hashing;
 public class AuthController {
     private static final int MAX_FAILED_LOGINS = 5;
     private static final int LOCKOUT_MINUTES = 15;
+    private static final String DUMMY_BCRYPT = "$2a$10$wT33L8kZ.oGj45WzW6u3I.B70e5X80Gg8vjTj6K3YhT3z5QhCqU2O";
 
     private final JdbcClient jdbc;
     private final AuditService audit;
     private final LoginRateLimiter limiter;
     private final TransactionTemplate tx;
+    private final PasswordEncoder passwordEncoder;
 
     public record LoginRequest(@NotBlank @Size(max = 64) String username, @NotBlank @Size(max = 128) String password) {
     }
@@ -71,12 +76,19 @@ public class AuthController {
     private record Invite(long id, String displayName, String role, String expiresAt) {
     }
 
-    /** Wires the database, audit trail and per-IP limiter. */
-    public AuthController(JdbcClient jdbc, AuditService audit, LoginRateLimiter limiter, TransactionTemplate tx) {
+    /** Wires the database, audit trail, per-IP limiter, and password encoder. */
+    @Autowired
+    public AuthController(JdbcClient jdbc, AuditService audit, LoginRateLimiter limiter, TransactionTemplate tx,
+                          PasswordEncoder passwordEncoder) {
         this.jdbc = jdbc;
         this.audit = audit;
         this.limiter = limiter;
         this.tx = tx;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    public AuthController(JdbcClient jdbc, AuditService audit, LoginRateLimiter limiter, TransactionTemplate tx) {
+        this(jdbc, audit, limiter, tx, new BCryptPasswordEncoder());
     }
 
     /**
@@ -97,8 +109,14 @@ public class AuthController {
                         rs.getString("role"), rs.getString("status"), rs.getString("password"), rs.getBoolean("locked"),
                         rs.getInt("failed_logins")))
                 .optional();
-        // Compare even when the user is unknown so response timing does not reveal which usernames exist.
-        boolean passwordOk = Hashing.constantTimeEquals(body.password(), found.map(UserRow::password).orElse(""));
+        // Compare with BCrypt even when the user is unknown so response timing does not reveal which usernames exist.
+        String hashToCheck = found.map(UserRow::password).orElse(DUMMY_BCRYPT);
+        boolean passwordOk;
+        try {
+            passwordOk = passwordEncoder.matches(body.password(), hashToCheck);
+        } catch (Exception e) {
+            passwordOk = false;
+        }
         if (found.isEmpty() || !"active".equals(found.get().status())) {
             audit.recordSeparately(found.map(UserRow::id).orElse(null), "auth.login", null, null, "failure",
                     Map.of("reason", found.isEmpty() ? "unknown_user" : "disabled"));
@@ -183,7 +201,7 @@ public class AuthController {
                         SELECT :u, display_name, :p, role, created_by FROM invitations WHERE id = :inviteId
                         RETURNING id
                         """)
-                        .param("u", body.username()).param("p", body.password()).param("inviteId", invite.id())
+                        .param("u", body.username()).param("p", passwordEncoder.encode(body.password())).param("inviteId", invite.id())
                         .query(Long.class).single();
                 jdbc.sql("UPDATE invitations SET accepted_at = now(), accepted_by = :uid WHERE id = :id")
                         .param("uid", id).param("id", invite.id()).update();

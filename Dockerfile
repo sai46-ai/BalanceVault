@@ -22,7 +22,6 @@ FROM eclipse-temurin:21-jre-alpine
 RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app
 COPY --from=build /build/target/balancevault.jar ./balancevault.jar
-COPY .env ./.env
 USER app
 EXPOSE 8080
 CMD ["java", "-jar", "/app/balancevault.jar"]

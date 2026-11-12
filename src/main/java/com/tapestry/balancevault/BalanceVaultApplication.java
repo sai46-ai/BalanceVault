@@ -8,6 +8,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.tapestry.balancevault.audit.AuditService;
@@ -27,6 +28,7 @@ public class BalanceVaultApplication {
      */
     @Bean
     ApplicationRunner seedAdmin(JdbcClient jdbc, AuditService audit, TransactionTemplate tx,
+                                PasswordEncoder passwordEncoder,
                                 @Value("${bv.admin-username}") String username,
                                 @Value("${bv.admin-password}") String password) {
         return args -> {
@@ -44,7 +46,7 @@ public class BalanceVaultApplication {
                         INSERT INTO users (username, display_name, password, role) VALUES (:u, 'Administrator', :p, 'admin')
                         RETURNING id
                         """)
-                        .param("u", normalized).param("p", password).query(Long.class).single();
+                        .param("u", normalized).param("p", passwordEncoder.encode(password)).query(Long.class).single();
                 audit.record(id, "user.seed_admin", "user", String.valueOf(id), "success", Map.of("role", "admin"));
             });
         };

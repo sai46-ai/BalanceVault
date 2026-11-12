@@ -4,7 +4,7 @@ CREATE TABLE users (
   id            BIGSERIAL PRIMARY KEY,
   username      VARCHAR(64)  NOT NULL UNIQUE,
   display_name  VARCHAR(80)  NOT NULL,
-  -- Plain text per the internal demo-app standard; compared in constant time in AuthController.
+  -- BCrypt hashed password
   password      VARCHAR(128) NOT NULL,
   role          VARCHAR(16)  NOT NULL CHECK (role IN ('admin', 'operator', 'auditor', 'customer')),
   status        VARCHAR(16)  NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),

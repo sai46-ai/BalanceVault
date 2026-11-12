@@ -1,5 +1,8 @@
 package com.tapestry.balancevault.security;
 
+import java.util.Arrays;
+import java.util.List;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -9,10 +12,15 @@ import org.springframework.security.authentication.ProviderNotFoundException;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.tapestry.balancevault.support.GlobalErrorHandler;
 
@@ -45,6 +53,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.ignoringRequestMatchers(PUBLIC_POSTS))
                 // The session stores only a user id; SessionAuthFilter rebuilds the principal on each request.
                 .securityContext(sc -> sc.securityContextRepository(new RequestAttributeSecurityContextRepository()))
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
@@ -67,5 +76,38 @@ public class SecurityConfig {
         return authentication -> {
             throw new ProviderNotFoundException("BalanceVault signs users in through /api/auth/login only");
         };
+    }
+
+    /** Password encoder using standard BCrypt hashing. */
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    /** CORS configuration allowing trusted origins, standard banking API headers, and credentials. */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        String allowed = System.getenv("CORS_ALLOWED_ORIGINS");
+        if (allowed == null || allowed.isBlank()) {
+            allowed = System.getenv("FRONTEND_URL");
+        }
+        if (allowed != null && !allowed.isBlank()) {
+            List<String> origins = Arrays.stream(allowed.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .toList();
+            config.setAllowedOriginPatterns(origins);
+        } else {
+            config.setAllowedOriginPatterns(List.of("*"));
+        }
+        config.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("X-CSRF-TOKEN", "Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With"));
+        config.setExposedHeaders(List.of("X-Request-Id", "X-CSRF-TOKEN"));
+        config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
     }
 }

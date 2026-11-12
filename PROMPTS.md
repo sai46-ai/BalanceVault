@@ -34,6 +34,17 @@ This log documents the iterative collaboration with AI, recording initial assump
 - **What happened:** `FUNCTIONALITY.md` repeatedly pointed candidates and operators to `runbook.md` for run instructions and admin credentials, but no `runbook.md` existed in the archive.
 - **What was done:** Authored a complete, production-grade `RUNBOOK.md` outlining the architecture, Docker Compose startup, 5-step role verification walkthrough, and Cloud deployment steps.
 
+### Incident 6: Multiple Constructors in AuthController
+- **What happened:** When running in Docker, Spring Boot failed to start with `BeanCreationException: Error creating bean with name 'authController': Failed to instantiate [AuthController]: No default constructor found`.
+- **Diagnosis:** `AuthController` defined two public constructors (one with `PasswordEncoder`, one fallback). Without a no-arg constructor or an `@Autowired` annotation, Spring Framework could not determine which constructor to inject dependencies into and defaulted to looking for `<init>()`.
+- **What was done:** Explicitly annotated the canonical 5-parameter constructor with `@Autowired`, allowing Spring Boot to cleanly inject `JdbcClient`, `AuditService`, `LoginRateLimiter`, `TransactionTemplate`, and `PasswordEncoder`.
+
+### Incident 7: Security Hardening & Milestone 1 Verification
+- **What happened:** Addressed the security items highlighted in `FUNCTIONALITY.md`:
+  - Upgraded password storage from demo plain text to standard salted BCrypt hashing.
+  - Suppressed raw Java stack traces from client JSON responses in `GlobalErrorHandler` (mitigating CWE-209 information disclosure).
+  - Validated local runtime end-to-end via Docker Compose, verifying successful database migration, admin seeding, session creation, and cryptographic ledger verification (`ok: true`).
+
 ---
 
 ## 3. Commit Architecture & Progression
@@ -54,6 +65,7 @@ Rather than a single monolithic dump, the repository was committed incrementally
 13. `ci: add GitHub Actions workflow for automated test and build verification`
 14. `build: optimize Dockerfile client stage with npm ci and package-lock`
 15. `docs: update PROMPTS.md with test expansion, CI automation, and Docker caching`
+16. `fix(auth): autowire primary AuthController constructor, harden security with BCrypt, and verify live runtime`
 
 ---
 
